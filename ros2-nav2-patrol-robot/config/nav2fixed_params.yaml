@@ -1,0 +1,334 @@
+amcl:
+  ros__parameters:
+    use_sim_time: false
+    base_frame_id: base_link
+    odom_frame_id: odom
+    global_frame_id: map
+    scan_topic: /scan
+    set_initial_pose: true
+    initial_pose.x: 0.0
+    initial_pose.y: 0.0
+    initial_pose.z: 0.0
+    initial_pose.yaw: 0.0
+    tf_broadcast: true
+    transform_tolerance: 1.0
+    robot_model_type: nav2_amcl::DifferentialMotionModel
+    alpha1: 0.3
+    alpha2: 0.3
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.2
+    max_particles: 3000
+    min_particles: 500
+    laser_max_range: 8.0
+    laser_min_range: 0.05
+    laser_model_type: likelihood_field
+    laser_likelihood_max_dist: 2.0
+    topic_to_wait_for_activated: ""
+    map_topic: map
+    max_beams: 60
+    z_hit: 0.5
+    z_short: 0.05
+    z_max: 0.05
+    z_rand: 0.5
+    sigma_hit: 0.2
+    lambda_short: 0.1
+
+map_server:
+  ros__parameters:
+    use_sim_time: false
+    yaml_filename: "/home/faldo-ivan/skripsi/map_obstacle.yaml"
+
+planner_server:
+  ros__parameters:
+    use_sim_time: false
+    expected_planner_frequency: 1.0    # [CHANGED] dari 0.5 — lorong lebih lebar, replanning lebih cepat aman
+    planner_plugins: ["GridBased"]
+
+    GridBased:
+      plugin: "nav2_smac_planner::SmacPlannerHybrid"
+      tolerance: 0.5
+      downsample_costmap: false
+      downsampling_factor: 1
+      allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      terminal_checking_interval: 5000
+      max_planning_time: 2.0           # [CHANGED] dari 3.0 — lorong lebih lebar, planning lebih mudah
+      motion_model_for_search: "REEDS_SHEPP"
+      cost_travel_multiplier: 7.0      # [CHANGED] dari 5.0 — turun sedikit, lorong lebih lebar tidak perlu terlalu agresif ke tengah
+      cost_penalty: 3.5               # [CHANGED] dari 3.4 — turun, lorong lebih lebar memberi ruang lebih
+      angle_quantization_bins: 72
+      minimum_turning_radius: 0.15
+      analytic_expansion_ratio: 3.5
+      analytic_expansion_max_length: 1.5
+      analytic_expansion_max_cost: 250.0
+      analytic_expansion_max_cost_override: true
+      reverse_penalty: 2.1
+      change_penalty: 0.15
+      non_straight_penalty: 1.20
+      retrospective_penalty: 0.025
+      rotation_penalty: 5.0
+      lookup_table_size: 20.0
+      cache_obstacle_heuristic: true
+      allow_reverse_expansion: true
+      smooth_path: true
+      debug_visualizations: false
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.4
+        w_data: 0.2
+        tolerance: 1.0e-10
+        do_refinement: true
+
+controller_server:
+  ros__parameters:
+    use_sim_time: false
+    controller_frequency: 20.0
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.0
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugin: "progress_checker"
+    goal_checker_plugins: ["general_goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.1
+      movement_time_allowance: 15.0
+
+    general_goal_checker:
+      stateful: True
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.35
+      yaw_goal_tolerance: 3.14
+
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: False
+      min_vel_x: -0.2
+      min_vel_y: 0.0
+      max_vel_x: 0.40                  # [CHANGED] dari 0.25 — lorong 120cm lebih aman untuk kecepatan lebih tinggi
+      max_vel_y: 0.0
+      max_vel_theta: 1.2
+      min_speed_xy: 0.0
+      max_speed_xy: 0.40               # [CHANGED] dari 0.25 — sesuai max_vel_x
+      min_speed_theta: 0.05
+      acc_lim_x: 2.5                   # [CHANGED] dari 2.0 — akselerasi lebih agresif untuk kecepatan lebih tinggi
+      acc_lim_y: 0.0
+      acc_lim_theta: 3.0
+      decel_lim_x: -2.5
+      decel_lim_y: 0.0
+      decel_lim_theta: -3.0
+      vx_samples: 20
+      vy_samples: 1
+      vtheta_samples: 45
+      sim_time: 1.2                    # [CHANGED] dari 1.2 — naikkan sedikit untuk kecepatan lebih tinggi
+      linear_granularity: 0.05
+      angular_granularity: 0.025
+      transform_tolerance: 0.5
+      xy_goal_tolerance: 0.25
+      trans_stopped_velocity: 0.05
+      short_circuit_trajectory_evaluation: True
+      stateful: True
+      critics: ["BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
+      BaseObstacle.scale: 0.05         # [CHANGED] dari 0.0 — beri sedikit nilai agar tidak nabrak sama sekali
+      PathAlign.scale: 96.0 #dari 96.0
+      PathAlign.forward_point_distance: 0.3
+      GoalAlign.scale: 8.0 #dari 24.0
+      GoalAlign.forward_point_distance: 0.2
+      PathDist.scale: 96.0 #dari 96.0
+      GoalDist.scale: 8.0 #dari 8.0
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: false
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    wait_for_service_timeout: 1000
+    action_server_result_timeout: 900.0
+    default_nav_to_pose_bt_xml: "/opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
+    default_nav_through_poses_bt_xml: "/opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
+    navigators: ["navigate_to_pose", "navigate_through_poses"]
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: false
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+      backup_dist: 0.2
+      backup_speed: 0.1
+    drive_on_heading:
+      plugin: "nav2_behaviors::DriveOnHeading"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+    assisted_teleop:
+      plugin: "nav2_behaviors::AssistedTeleop"
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_tolerance: 0.5
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.2
+    min_rotational_vel: 0.3
+    rotational_acc_lim: 3.0
+
+waypoint_follower:
+  ros__parameters:
+    use_sim_time: false
+    loop_rate: 20
+    stop_on_failure: false
+    action_server_result_timeout: 900.0
+    waypoint_task_executor_plugin: "wait_at_waypoint"
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
+      enabled: true
+      waypoint_pause_duration: 200
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: false
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: OPEN_LOOP
+    max_velocity: [0.40, 0.0, 1.2]    # [CHANGED] dari [0.25, 0.0, 1.2] — sesuai max_vel controller
+    min_velocity: [-0.15, 0.0, -1.2]
+    max_accel: [2.5, 0.0, 3.0]        # [CHANGED] dari [2.0, 0.0, 3.0]
+    max_decel: [-2.5, 0.0, -3.2]
+    odom_topic: odom
+    odom_duration: 0.1
+    deadband_velocity: [0.05, 0.0, 0.05]
+    velocity_timeout: 1.0
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: false
+      global_frame: odom
+      robot_base_frame: base_link
+      update_frequency: 20.0
+      publish_frequency: 20.0
+      rolling_window: true
+      width: 3
+      height: 3
+      resolution: 0.05
+      footprint: "[[0.15, 0.10], [0.15, -0.10], [-0.15, -0.10], [-0.15, 0.10]]"
+      footprint_padding: 0.01
+      plugins: ["obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          data_type: LaserScan
+          clearing: true
+          marking: true
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.5
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          inf_is_valid: true
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        # Lorong 120cm, robot 30cm → sisa 90cm → max safe inflation = 45cm = 0.45m
+        # Pakai 0.25m — lebih besar dari sebelumnya karena lorong lebih lebar
+        # Robot lebih tahu mana tengah lorong
+        inflation_radius: 0.18         # [CHANGED] dari 0.20 — lorong lebih lebar, bisa pakai inflation lebih besar
+        cost_scaling_factor: 1.5 #dari 0.8       # tetap
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: false
+      global_frame: map
+      robot_base_frame: base_link
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      resolution: 0.05
+      footprint: "[[0.15, 0.10], [0.15, -0.10], [-0.15, -0.10], [-0.15, 0.10]]"
+      footprint_padding: 0.01
+      track_unknown_space: true
+#      filters: ["keepout_filter"]
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          data_type: LaserScan
+          clearing: true
+          marking: true
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        # Global lebih besar dari local — planner lebih prefer tengah lorong
+        # Lorong 120cm → max safe = 45cm, pakai 0.35m
+        inflation_radius: 0.25 #dari 0.2        # [CHANGED] dari 0.20 — lorong lebih lebar, gradient lebih luas
+        cost_scaling_factor: 0.5 #dari 0.8      # [CHANGED] dari 1.0 — gradient sangat lembut, planner sangat prefer tengah
+#      keepout_filter:
+#        plugin: "nav2_costmap_2d::KeepoutFilter"
+#        enabled: true
+#        filter_info_topic: "/costmap_filter_info"
+#        transform_tolerance: 1.0
+
+collision_monitor:
+  ros__parameters:
+    use_sim_time: false
+    base_frame_id: base_link
+    odom_frame_id: odom
+    cmd_vel_in_topic: cmd_vel_smoothed
+    cmd_vel_out_topic: cmd_vel
+    state_topic: collision_monitor_state
+    transform_tolerance: 0.5
+    source_timeout: 2.0
+    base_shift_correction: true
+    stop_pub_timeout: 2.0
+    polygons: ["PolygonStop", "PolygonSlow"]
+    PolygonStop:
+      type: polygon
+      # Lorong 120cm — bisa sedikit lebih besar dari sebelumnya
+      # Depan: +0.22m | Belakang: -0.16m | Samping: ±0.12m
+      points: "[[0.25, 0.13], [0.25, -0.13], [-0.18, -0.13], [-0.18, 0.13]]"
+      action_type: stop
+      min_points: 2
+      visualize: true
+      polygon_pub_topic: polygon_stop
+    PolygonSlow:
+      type: polygon
+      # [CHANGED] diperbesar — lorong 120cm memberi ruang lebih untuk slow zone
+      # Depan: +0.55m | Belakang: -0.20m | Samping: ±0.20m
+      points: "[[1.0, 0.15], [1.0, -0.15], [-0.10, -0.15], [-0.10, 0.15]]"
+      action_type: slowdown
+      slowdown_ratio: 0.3              # [CHANGED] dari 0.4 — lorong lebih lebar, tidak perlu terlalu pelan
+      min_points: 2
+      visualize: true
+      polygon_pub_topic: polygon_slow
+    observation_sources: ["scan"]
+    scan:
+      type: scan
+      topic: /scan
